@@ -1,4 +1,5 @@
-import { defineConfig, presets } from 'sponsorkit'
+import { BadgePreset, defineConfig, presets } from 'sponsorkit'
+import fs from 'fs/promises'
 
 const SAMPLE_LOGO = (width: number, y: number) => `
 <a xlink:href="https://example.com" class="sponsorkit-link" target="_blank" id="Sample">
@@ -6,8 +7,24 @@ const SAMPLE_LOGO = (width: number, y: number) => `
 </a>
 `
 
+const past: BadgePreset = {
+  avatar: {
+    size: 20,
+  },
+  boxWidth: 22,
+  boxHeight: 22,
+  container: {
+    sidePadding: 35,
+  },
+}
+
 export default defineConfig({
   tiers: [
+    {
+      title: 'Past Sponsors',
+      monthlyDollars: -1,
+      preset: past,
+    },
     {
       title: 'Backers',
       preset: presets.small,
@@ -55,5 +72,68 @@ export default defineConfig({
     //     }
     //   }
     // },
+  ],
+
+  async onSponsorsReady(sponsors) {
+    await fs.writeFile(
+      'sponsors.json',
+      JSON.stringify(
+        sponsors
+          .filter((i) => i.privacyLevel !== 'PRIVATE')
+          .map((i) => {
+            return {
+              name: i.sponsor.name,
+              login: i.sponsor.login,
+              avatar: i.sponsor.avatarUrl,
+              amount: i.monthlyDollars,
+              link: i.sponsor.linkUrl || i.sponsor.websiteUrl,
+              org: i.sponsor.type === 'Organization'
+            }
+          })
+          .sort((a, b) => b.amount - a.amount),
+        null,
+        2
+      )
+    )
+  },
+
+  outputDir: '.',
+  formats: ['svg', 'png'],
+
+  renders: [
+    {
+      name: 'sponsors',
+      width: 800,
+      // filter: sponsor => sponsor.sponsor?.login !== 'nuxtlabs',
+    },
+    {
+      name: 'sponsors.wide',
+      width: 1800,
+      // filter: sponsor => sponsor.sponsor?.login !== 'nuxtlabs',
+    },
+    {
+      name: 'sponsors.part1',
+      width: 800,
+      filter: (sponsor) => sponsor.monthlyDollars >= 9.9
+    },
+    {
+      name: 'sponsors.part2',
+      width: 800,
+      filter: (sponsor) => sponsor.monthlyDollars < 9.9 && sponsor.monthlyDollars >= 0
+    },
+    {
+      name: 'sponsors.past',
+      width: 800,
+      filter: (sponsor) => sponsor.monthlyDollars < 0
+    },
+    {
+      name: 'sponsors.circles',
+      width: 1000,
+      includePastSponsors: true,
+      renderer: 'circles',
+      circles: {
+        radiusPast: 3
+      }
+    }
   ]
 })
